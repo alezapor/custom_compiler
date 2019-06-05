@@ -38,7 +38,26 @@ int PJPLexer::getTok() {
             return tokenDiv;
         if (identifierStr == "mod")
             return tokenMod;
-
+	if (identifierStr == "exit")
+            return tokenExit;
+	if (identifierStr == "if")
+            return tokenIf;
+	if (identifierStr == "then")
+            return tokenThen;
+	if (identifierStr == "else")
+            return tokenElse;
+	if (identifierStr == "while")
+            return tokenWhile;
+	if (identifierStr == "do")
+            return tokenDo;
+	if (identifierStr == "for")
+            return tokenFor;
+	if (identifierStr == "to")
+            return tokenTo;
+	if (identifierStr == "downto")
+            return tokenDownto;
+	if (identifierStr == "break")
+            return tokenBreak;
         return tokenIdentifier;
     }
 
@@ -116,6 +135,12 @@ int PJPLexer::getTok() {
         if (lastChar == '=') {
             lastChar = getchar();
             return tokenAssign;
+        }
+    }
+    if (thisChar == '<') {
+        if (lastChar == '>') {
+            lastChar = getchar();
+            return tokenNeq;
         }
     }
     return thisChar;

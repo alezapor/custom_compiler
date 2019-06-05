@@ -122,6 +122,30 @@ public:
 	}
 };
 
+// ExitAST - Class for all exit commands
+class ExitAST : public StatmAST {
+    std::string m_Funct;
+	bool retVal;
+public:
+    ExitAST(std::string funct, bool type) : retVal(type) {m_Funct = funct;}
+
+    virtual llvm::Value *codegen(PJPCodegen &cg);
+	void currFunct(std::string funct) {
+		m_Funct = funct;
+		retVal = false;
+	}
+};
+
+// BreakAST - Class for all break commands
+class BreakAST : public StatmAST {
+public:
+    BreakAST() {}
+
+    virtual llvm::Value *codegen(PJPCodegen &cg);
+	void currFunct(std::string funct) {}
+};
+
+
 // StatmListAST - class for a block of statements
 class StatmListAST : public StatmAST {
     std::vector<std::unique_ptr<StatmAST>> m_StatmList;
@@ -145,7 +169,7 @@ public:
 
     void addStatmList(std::unique_ptr<StatmListAST> statmList) {
         //auto list = std::move(statmList->getList());
-        for (int i = 0 ; i < statmList->getList().size(); i++) m_StatmList.emplace_back(std::move(statmList->getList()[i]));
+        for (unsigned i = 0 ; i < statmList->getList().size(); i++) m_StatmList.emplace_back(std::move(statmList->getList()[i]));
     }
 };
 
@@ -241,6 +265,42 @@ public:
 	}
     virtual llvm::Value *codegen(PJPCodegen &cg);
 };
+
+class IfAST : public StatmAST {
+	std::unique_ptr<ExprAST> Cond;
+	std::unique_ptr<StatmListAST> Then, Else;
+public:
+	IfAST(std::unique_ptr<ExprAST> Cond, std::unique_ptr<StatmListAST> Then, std::unique_ptr<StatmListAST> Else) : Cond(std::move(Cond)), Then(std::move(Then)), Else(std::move(Else)) {}
+	void currFunct(std::string funct) {
+		Then->currFunct(funct);
+		Else->currFunct(funct);
+	}
+	virtual llvm::Value *codegen(PJPCodegen &cg);
+};
+
+class WhileAST : public StatmAST {
+	std::unique_ptr<ExprAST> Cond;
+	std::unique_ptr<StatmListAST> List;
+public:
+	WhileAST(std::unique_ptr<ExprAST> Cond, std::unique_ptr<StatmListAST> List) : Cond(std::move(Cond)), List(std::move(List)) {}
+	void currFunct(std::string funct) {
+		List->currFunct(funct);
+	}
+	virtual llvm::Value *codegen(PJPCodegen &cg);
+};
+
+class ForAST : public StatmAST {
+	std::string m_Var;
+	std::unique_ptr<ExprAST> m_Start, m_End, m_Step;
+	std::unique_ptr<StatmListAST> m_Body;
+public:
+	ForAST(std::string v, std::unique_ptr<ExprAST> st, std::unique_ptr<ExprAST> by, std::unique_ptr<ExprAST> end, std::unique_ptr<StatmListAST> bd) : m_Var(v), m_Start(std::move(st)), m_End(std::move(end)), m_Step(std::move(by)), m_Body(std::move(bd)) {}
+    void currFunct(std::string funct) {
+		m_Body->currFunct(funct);
+	}
+	virtual llvm::Value *codegen(PJPCodegen &cg);
+};
+
 
 class FunctionCallAST : public StatmAST {
     std::string m_Name;

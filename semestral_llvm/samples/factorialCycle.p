@@ -6,9 +6,9 @@ var
 begin
     f := 1;
     readln(n);
-    while(n >= 2) do begin
+    while n > 1 do begin
         f := f * n;
-	dec(n);
+		n := n - 1;
     end;
     writeln(f);
 end.

@@ -44,6 +44,11 @@ public:
 	
 	std::unique_ptr<StatmAST> ParseCommand();
 	std::unique_ptr<StatmAST> ParseCommand1(std::string &);
+	std::unique_ptr<StatmListAST> ParseCommand2();
+	std::unique_ptr<StatmListAST> ParseCommList();
+	std::unique_ptr<StatmAST> ParseFor(std::string id, std::unique_ptr<ExprAST> expr);
+	std::unique_ptr<ExprAST> ParseCond();
+	char ParseROp();
 
 	std::unique_ptr<ExprAST> ParseExpression();
 

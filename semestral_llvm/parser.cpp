@@ -300,7 +300,7 @@ std::vector<std::string>  PJPParser::ParseArgID(std::vector<std::string> & args)
     }
 }
 
-// MAIN -> begin REST
+// MAIN -> begin REST .
 std::unique_ptr<StatmListAST> PJPParser::ParseMain(std::unique_ptr<StatmListAST> list){
     std::cout << "Main" << std::endl;
     if (curTok != tokenBegin){
@@ -309,11 +309,16 @@ std::unique_ptr<StatmListAST> PJPParser::ParseMain(std::unique_ptr<StatmListAST>
     }
 
     getNextToken();
-    return std::move(ParseRest(std::move(list)));
+    auto rest = std::move(ParseRest(std::move(list)));
+    if (curTok != '.'){
+        MatchError((Token) curTok);
+        return list;
+    }
+    return std::move(rest);
 }
 
 
-// REST -> COMM ; REST | end 
+// REST -> COMM REST | end 
 std::unique_ptr<StatmListAST> PJPParser::ParseRest(std::unique_ptr<StatmListAST> list){
     std::cout << "Rest" << std::endl;
     switch (curTok) {
@@ -324,14 +329,14 @@ std::unique_ptr<StatmListAST> PJPParser::ParseRest(std::unique_ptr<StatmListAST>
         case tokenWriteln:
         case tokenReadln:
         case tokenIdentifier:
+	case tokenExit:
+	case tokenBreak:
+	case tokenIf:
+	case tokenWhile:
+	case tokenFor:
         {
             auto comm = std::move(ParseCommand());
             list->addStatm(std::move(comm));
-            if(curTok != ';'){
-                MatchError((Token) curTok);
-                return nullptr;
-            }
-            getNextToken();
             return ParseRest(std::move(list));
         }
         default:
@@ -500,7 +505,7 @@ std::unique_ptr<StatmListAST> PJPParser::ParseArgConst(std::unique_ptr<StatmList
     }
 }
 
-//COMM -> readln ( id ) | writeln ( E ) | id COMM1
+//COMM -> readln ( id ) ; | writeln ( E ) ; | id COMM1 ; | exit ; | if COND then COMM_LIST COMM2 | while COND do COMM_LIST | for id := E FOR | break ;
 
 std::unique_ptr<StatmAST> PJPParser::ParseCommand(){
     std::cout << "Comm" << std::endl;
@@ -517,6 +522,11 @@ std::unique_ptr<StatmAST> PJPParser::ParseCommand(){
             auto statm = llvm::make_unique<ReadlnAST>(std::move(var));
             getNextToken();
             if (curTok != ')') {
+                MatchError((Token) curTok);
+                return nullptr;
+            }
+            getNextToken();
+	    if (curTok != ';') {
                 MatchError((Token) curTok);
                 return nullptr;
             }
@@ -539,22 +549,88 @@ std::unique_ptr<StatmAST> PJPParser::ParseCommand(){
                 return nullptr;
             }
             getNextToken();
+	    if (curTok != ';') {
+                MatchError((Token) curTok);
+                return nullptr;
+            }
+            getNextToken();
             return std::move(statm);
         }
         case tokenIdentifier:
         {
             std::string id = m_Lexer.identifierStr;
-            /*auto var = llvm::make_unique<VarAST>(m_Lexer.identifierStr, currFunct);*/
             getNextToken();
-            /*
-                if (curTok != tokenAssign){
-                    MatchError((Token) curTok);
-                    return nullptr;
-                }
-                getNextToken();
-                auto expr = std::move(ParseExpression());
-                auto statm = llvm::make_unique<AssignAST>(std::move(var), std::move(expr));*/
-            return std::move(ParseCommand1(id));
+            auto comm1 = std::move(ParseCommand1(id));
+	    if (curTok != ';') {
+                MatchError((Token) curTok);
+                return nullptr;
+            }
+            getNextToken();
+	    return std::move(comm1);
+        }
+	case tokenExit:
+        {
+	    getNextToken();
+	    auto statm = llvm::make_unique<ExitAST>(currFunct, (proto)? proto->retVal : false);
+	    if (curTok != ';') {
+                MatchError((Token) curTok);
+                return nullptr;
+            }
+            getNextToken();
+            return std::move(statm);
+        }
+	case tokenBreak:
+        {
+	    getNextToken();
+	    auto statm = llvm::make_unique<BreakAST>();
+	    if (curTok != ';') {
+                MatchError((Token) curTok);
+                return nullptr;
+            }
+            getNextToken();
+            return std::move(statm);
+        }
+	case tokenIf:
+        {
+	    getNextToken();
+	    auto cond = std::move(ParseCond());
+            if (curTok != tokenThen) {
+                MatchError((Token) curTok);
+                return nullptr;
+            }
+            getNextToken();
+	    auto then = std::move(ParseCommList());
+	    auto els = std::move(ParseCommand2());
+            return llvm::make_unique<IfAST>(std::move(cond), std::move(then), std::move(els));
+        }
+	case tokenWhile:
+        {
+	    getNextToken();
+	    auto cond = std::move(ParseCond());
+            if (curTok != tokenDo) {
+                MatchError((Token) curTok);
+                return nullptr;
+            }
+            getNextToken();
+	    auto toDo = std::move(ParseCommList());
+            return llvm::make_unique<WhileAST>(std::move(cond), std::move(toDo));
+        }
+	case tokenFor:
+        {
+	    getNextToken();
+	    if (curTok != tokenIdentifier) {
+                MatchError((Token) curTok);
+                return nullptr;
+            }
+	    std::string id = m_Lexer.identifierStr;
+            getNextToken();
+	    if (curTok != tokenAssign) {
+                MatchError((Token) curTok);
+                return nullptr;
+            }
+            getNextToken();
+	    auto expr = std::move(ParseExpression());
+            return std::move(ParseFor(id, std::move(expr)));
         }
         default:
             ExpandError("Comm", (Token) curTok);
@@ -593,6 +669,137 @@ std::unique_ptr<StatmAST> PJPParser::ParseCommand1(std::string & id){
     }
 }
 
+//COMM2 -> ; | else COMM_LIST
+std::unique_ptr<StatmListAST> PJPParser::ParseCommand2(){
+    std::cout << "Comm2" << std::endl;
+    switch (curTok) {
+        case ';':
+        {
+	    auto newList = llvm::make_unique<StatmListAST>();
+            return std::move(newList);
+        }
+        case tokenElse:
+        {
+            getNextToken();
+            return std::move(ParseCommList());
+        }
+        default:
+            ExpandError("Comm2", (Token) curTok);
+            return nullptr;
+    }
+
+}
+
+//COMM_LIST -> COMM | begin REST ; 
+std::unique_ptr<StatmListAST> PJPParser::ParseCommList(){
+    std::cout << "CommList" << std::endl;
+    switch (curTok) {
+        case tokenWriteln:
+        case tokenReadln:
+        case tokenIdentifier:
+	case tokenExit:
+	case tokenBreak:
+	case tokenIf:
+	case tokenWhile:
+	case tokenFor:
+        {
+	    auto newList = llvm::make_unique<StatmListAST>();
+            newList->addStatm(std::move(ParseCommand()));
+	    return std::move(newList);
+        }
+        case tokenBegin:
+        {
+	    getNextToken();
+            auto newList = llvm::make_unique<StatmListAST>();
+            auto res = std::move(ParseRest(std::move(newList)));
+	    if (curTok != ';') {
+                MatchError((Token)curTok);
+                return nullptr;
+            }
+            getNextToken();
+	    return std::move(res);
+        }
+        default:
+            ExpandError("CommList", (Token) curTok);
+            return nullptr;
+    }
+
+}
+
+// FOR -> to E do COMM_LIST | downto E do COMM_LIST
+std::unique_ptr<StatmAST> PJPParser::ParseFor(std::string var, std::unique_ptr<ExprAST> st){
+    std::cout << "For" << std::endl;
+    switch (curTok) {
+        case tokenTo:
+        {
+	    getNextToken();
+	    auto end = std::move(ParseExpression());
+	    if (curTok != tokenDo) {
+                MatchError((Token)curTok);
+                return nullptr;
+            }
+            getNextToken();
+	    auto body = std::move(ParseCommList());
+	    return llvm::make_unique<ForAST>(var, std::move(st), llvm::make_unique<NumbExprAST>(1), std::move(end), std::move(body));
+        }
+        case tokenDownto:
+        {
+	    getNextToken();
+	    auto end = std::move(ParseExpression());
+	    if (curTok != tokenDo) {
+                MatchError((Token)curTok);
+                return nullptr;
+            }
+            getNextToken();
+	    auto body = std::move(ParseCommList());
+	    return llvm::make_unique<ForAST>(var, std::move(st), llvm::make_unique<NumbExprAST>(-1), std::move(end), std::move(body));
+        }
+        default:
+            ExpandError("For", (Token) curTok);
+            return nullptr;
+    }
+
+}
+
+// COND -> E ROp E
+std::unique_ptr<ExprAST> PJPParser::ParseCond() {
+    std::cout << "Cond" << std::endl;
+    switch (curTok) {
+        case tokenIdentifier:
+	case tokenNumber:
+	case '(':
+        {
+    	    auto l = std::move(ParseExpression());
+	    char op = ParseROp();
+	    auto r = std::move(ParseExpression());
+	    return llvm::make_unique<BinaryExprAST>(op, std::move(l), std::move(r));
+	}
+ 	default:
+            ExpandError("Cond", (Token) curTok);
+            return nullptr;
+    }
+}
+
+// ROp -> <> | > | = | < 
+char PJPParser::ParseROp(){
+    std::cout << "ROp" << (int) curTok<< std::endl;
+    switch (curTok) {
+        case tokenNeq:
+	   getNextToken();
+	   return '!';	
+	case '=':
+	case '>':
+	case '<':
+        {
+            char tok = curTok;
+	    getNextToken();
+    	    return tok;
+	}
+ 	default:
+            ExpandError("ROp", (Token) curTok);
+            return '\0';
+    }
+}
 
 // E -> T E'
 std::unique_ptr<ExprAST> PJPParser::ParseExpression() {
@@ -618,7 +825,8 @@ std::unique_ptr<ExprAST> PJPParser::ParseExprRest(std::unique_ptr<ExprAST> term)
             //getNextToken();
             return ParseExprRest(llvm::make_unique<BinaryExprAST>('-', std::move(term), std::move(result)));
         }
-        case ';': case ')': case ',':
+        case ';': case ')': case ',': case '=': case tokenThen:
+	case tokenDo: case '<': case tokenNeq: case '>': case tokenTo: case tokenDownto:
             return std::move(term);
         default:
             ExpandError("ExprRest", (Token) curTok);
@@ -654,7 +862,7 @@ std::unique_ptr<ExprAST> PJPParser::ParseTermRest(std::unique_ptr<ExprAST> facto
             auto result = std::move(ParseFactor());
             return ParseExprRest(llvm::make_unique<BinaryExprAST>('%', std::move(factor), std::move(result)));
         }
-        case ';': case '+': case '-': case ')': case ',':
+        case ';': case '+': case '-': case ')': case ',': case '=': case tokenThen: case tokenDo: case '<': case tokenNeq: case '>': case tokenTo: case tokenDownto:
             return std::move(factor);
         default:
             ExpandError("TermRest", (Token) curTok);
@@ -699,13 +907,9 @@ std::unique_ptr<ExprAST> PJPParser::ParseFactor() {
 std::unique_ptr<ExprAST> PJPParser::ParseFactorRest(std::string & id) {
     std::cout << "FactorRest" << std::endl;
     switch (curTok) {
-        case tokenDiv:
-        case tokenMod:
-        case '-':
-        case '+':
-        case '*':
-        case ')':
-        case ';':
+        case tokenDiv: case tokenMod: case '*': case ';': case '+': case '-': case ')': 
+case ',': case '=': case tokenThen: case tokenDo: case '<': 
+case tokenNeq: case '>': case tokenTo: case tokenDownto:
         {
             auto result = llvm::make_unique<VarAST>(id, currFunct);
             return std::move(result);
