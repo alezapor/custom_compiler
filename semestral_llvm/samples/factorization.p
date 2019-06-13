@@ -3,7 +3,6 @@ program factorization;
 procedure factorization(n: integer);
 var max, i: integer;
 begin
-    write('Factors of: ');
     writeln(n);
 
     if n < 4 then
@@ -66,4 +65,5 @@ begin
     factorization(100);
     factorization(131);
     factorization(133);
+
 end.

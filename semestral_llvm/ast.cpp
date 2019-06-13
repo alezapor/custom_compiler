@@ -3,6 +3,7 @@
 static bool exitInBlock = false;
 static bool breakInBlock = false;
 static llvm::BasicBlock * whereToBreak;
+static llvm::BasicBlock * returnBlock;
 
 static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function * theFunction,
 			const std::string &VarName, llvm::Type * type) {
@@ -160,8 +161,7 @@ llvm::Value *ExitAST::codegen(PJPCodegen &codegen) {
     std::cout << "Generating exit" << std::endl;
      exitInBlock = true;
      breakInBlock = true;
-    if (!retVal) return codegen.builder.CreateRetVoid();
-    else return codegen.builder.CreateRet(codegen.builder.CreateLoad(codegen.localVars[m_Funct][m_Funct])); 
+     return codegen.builder.CreateBr(returnBlock);
    
 }
 
@@ -233,7 +233,7 @@ llvm::Value *AssignAST::codegen(PJPCodegen &codegen) {
 llvm::Value *StatmListAST::codegen(PJPCodegen &codegen) {
     llvm::Value *last = NULL;
     for (auto it = m_StatmList.begin(); it != m_StatmList.end(); it++) {
-        if(exitInBlock) break;
+        //if(exitInBlock) break;
 	last = (*it)->codegen(codegen);
     }
     std::cout << "Creating block" << std::endl;
@@ -242,10 +242,17 @@ llvm::Value *StatmListAST::codegen(PJPCodegen &codegen) {
 
 llvm::Value *ProgramAST::codegen(PJPCodegen &codegen) {
     llvm::Value *last = NULL;
-
+    llvm::BasicBlock* returnBB = llvm::BasicBlock::Create(codegen.theContext, "returnBB");
+    llvm::Function *F = codegen.builder.GetInsertBlock()->getParent();
+    returnBlock = returnBB;
     std::cout << "Generating code for program " << m_Name << std::endl;
+    
     last = m_List->codegen(codegen);
-    if(!exitInBlock) codegen.builder.CreateRetVoid();
+    codegen.builder.CreateBr(returnBB);
+    F->getBasicBlockList().push_back(returnBB);
+    codegen.builder.SetInsertPoint(returnBB);
+	
+    codegen.builder.CreateRetVoid();
     return last;
 }
 
@@ -332,7 +339,6 @@ llvm::Value *ConstDeclAST::codegen(PJPCodegen &codegen) {
 
 llvm::Value *ProtoAST::codegen(PJPCodegen &codegen) {
     std::cout << "Function decl: " << m_Name << std::endl;
-    exitInBlock = false;
     std::vector < llvm::Type * > params;
     for (unsigned i = 0; i < m_Arguments.size(); i++) {
         if (m_Arguments[i].second.integer) params.push_back(llvm::Type::getInt64Ty(codegen.theContext));
@@ -361,6 +367,10 @@ llvm::Value *FunctionAST::codegen(PJPCodegen &codegen) {
     if (!m_Body) return nullptr;
 
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(codegen.theContext, m_Proto->m_Name+"block", F);
+    llvm::BasicBlock* returnBB = llvm::BasicBlock::Create(codegen.theContext, "returnBB");
+    auto oldReturnBlock = returnBlock;
+    returnBlock = returnBB;
+    
     auto mainBlock = codegen.builder.GetInsertBlock();
     codegen.builder.SetInsertPoint(BB);
     if (m_Proto->retVal) codegen.localVars[m_Proto->m_Name][m_Proto->m_Name] =  CreateEntryBlockAlloca(F, m_Proto->m_Name, llvm::Type::getInt64Ty(codegen.theContext));
@@ -372,13 +382,17 @@ llvm::Value *FunctionAST::codegen(PJPCodegen &codegen) {
         // Add arguments to variable symbol table.
         codegen.localVars[m_Proto->m_Name][arg.getName()] = alloc;
     }
+    exitInBlock = false;
     (this->m_Body)->codegen(codegen);
-    if(!exitInBlock){
+    codegen.builder.CreateBr(returnBB);
+    F->getBasicBlockList().push_back(returnBB);
+    codegen.builder.SetInsertPoint(returnBB);
     if (m_Proto->retVal) codegen.builder.CreateRet(codegen.builder.CreateLoad(codegen.localVars[m_Proto->m_Name][m_Proto->m_Name])); 
-    else  codegen.builder.CreateRetVoid();}
+    else  codegen.builder.CreateRetVoid();
     codegen.builder.SetInsertPoint(mainBlock);
     exitInBlock = false;
     breakInBlock = false;
+    returnBlock = oldReturnBlock;
     return nullptr;
 }
 
@@ -393,6 +407,7 @@ llvm::Value *FunctionCallAST::codegen(PJPCodegen &codegen) {
         auto res = (*i)->codegen(codegen);
         args.push_back(res);
     }
+    exitInBlock = false;
 
     std::cout << "Creating method call:" << m_Name << std::endl;
     return codegen.builder.CreateCall(function, args);
@@ -409,7 +424,7 @@ llvm::Value *FunctionCallExprAST::codegen(PJPCodegen &codegen) {
         auto res = (*i)->codegen(codegen);
         args.push_back(res);
     }
-
+    exitInBlock = false;
     std::cout << "Creating method call:" << m_Name << std::endl;
     return codegen.builder.CreateCall(function, args);
 }
