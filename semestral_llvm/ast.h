@@ -7,6 +7,13 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
 #include "codegen.h"
+#include <utility>
+
+struct VarType {
+		bool integer;
+		int min;
+		int max;
+	};
 
 // NodeAST - Base class for all nodes.
 class NodeAST {
@@ -41,9 +48,9 @@ public:
 
 // VarAST - Class for variable reference
 class VarAST : public ExprAST {
+public:
     std::string m_Name;
     std::string m_Funct;
-public:
     VarAST(std::string name, std::string funct) : m_Name(name), m_Funct(funct) {}
 
     virtual llvm::Value *codegen(PJPCodegen &cg);
@@ -53,11 +60,21 @@ public:
     const std::string &getFunct() { return m_Funct; }
 };
 
+class ArrayContentAST : public VarAST {
+	std::unique_ptr<ExprAST> m_Index;
+public:
+    ArrayContentAST(std::string name, std::string funct, std::unique_ptr<ExprAST> index ) : VarAST(name, funct), m_Index(std::move(index)) {}
+
+    virtual llvm::Value *codegen(PJPCodegen &cg);
+};
+
+
+
 // VarAST - Class for variable pointer
 class VarRefAST : public ExprAST {
+public:
     std::string m_Name;
     std::string m_Funct;
-public:
     VarRefAST(std::string name, std::string funct) : m_Name(name), m_Funct(funct) {}
 	
     virtual llvm::Value *codegen(PJPCodegen &cg);
@@ -66,6 +83,16 @@ public:
 
     const std::string &getFunct() { return m_Funct; }
 };
+
+
+class ArrayContentRefAST : public VarRefAST {
+    std::unique_ptr<ExprAST> m_Index;
+public:
+    ArrayContentRefAST(std::string name, std::string funct,  std::unique_ptr<ExprAST> ind) : VarRefAST(name, funct), m_Index(std::move(ind)) {}
+	
+    virtual llvm::Value *codegen(PJPCodegen &cg);
+};
+
 
 // BinaryExprAST - Expression class for a binary operator.
 class BinaryExprAST : public ExprAST {
@@ -86,10 +113,10 @@ public:
 
 // AssignAST - Class for all assignment statements
 class AssignAST : public StatmAST {
-    std::unique_ptr<VarAST> m_Var;
+    std::unique_ptr<VarRefAST> m_Var;
     std::unique_ptr<ExprAST> m_Expr;
 public:
-    AssignAST(std::unique_ptr<VarAST> var, std::unique_ptr<ExprAST> expr) :
+    AssignAST(std::unique_ptr<VarRefAST> var, std::unique_ptr<ExprAST> expr) :
             m_Var(std::move(var)), m_Expr(std::move(expr)) {}
 	void currFunct(std::string funct) {
 		m_Var->currFunct(funct);
@@ -189,6 +216,25 @@ public:
     virtual llvm::Value *codegen(PJPCodegen &cg);
 };
 
+// ArrayDeclAST - Class for a variable declaration
+class ArrayDeclAST : public StatmAST {
+    std::string m_Name;
+    std::string m_Funct;
+	int m_Min;
+	int m_Max;
+public:
+    ArrayDeclAST(std::string name, std::string funct, int min, int max) : m_Name(name), m_Funct(funct), m_Min(min), m_Max(max) {}
+	void currFunct(std::string funct) {
+		m_Funct = funct;
+	}
+    const std::string &getName() { return m_Name; }
+
+    const std::string &getFunct() { return m_Funct; }
+
+    virtual llvm::Value *codegen(PJPCodegen &cg);
+};
+
+
 class ConstDeclAST : public StatmAST {
     std::string m_Name;
     int m_Val;
@@ -223,12 +269,12 @@ public:
 class ProtoAST : public StatmAST {
 public:
     std::string m_Name;
-    std::vector<std::string> m_Arguments;
+    std::vector<std::pair<std::string, VarType>> m_Arguments;
     bool retVal;
 
     ProtoAST(std::string name, bool retVal) : m_Name(name), retVal(retVal) {}
 	void currFunct(std::string funct) {}
-    void addArgument(std::string &arg) { m_Arguments.push_back(arg); }
+    void addArgument(std::string &arg, VarType type) { m_Arguments.push_back(make_pair(arg, type)); }
 
     virtual llvm::Value *codegen(PJPCodegen &cg);
 };
@@ -290,11 +336,11 @@ public:
 };
 
 class ForAST : public StatmAST {
-	std::string m_Var;
+	std::unique_ptr<VarRefAST> m_Var;
 	std::unique_ptr<ExprAST> m_Start, m_End, m_Step;
 	std::unique_ptr<StatmListAST> m_Body;
 public:
-	ForAST(std::string v, std::unique_ptr<ExprAST> st, std::unique_ptr<ExprAST> by, std::unique_ptr<ExprAST> end, std::unique_ptr<StatmListAST> bd) : m_Var(v), m_Start(std::move(st)), m_End(std::move(end)), m_Step(std::move(by)), m_Body(std::move(bd)) {}
+	ForAST(std::unique_ptr<VarRefAST> v, std::unique_ptr<ExprAST> st, std::unique_ptr<ExprAST> by, std::unique_ptr<ExprAST> end, std::unique_ptr<StatmListAST> bd) : m_Var(std::move(v)), m_Start(std::move(st)), m_End(std::move(end)), m_Step(std::move(by)), m_Body(std::move(bd)) {}
     void currFunct(std::string funct) {
 		m_Body->currFunct(funct);
 	}

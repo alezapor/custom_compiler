@@ -23,9 +23,11 @@ public:
     llvm::IRBuilder<> builder;
     llvm::LLVMContext theContext;
     std::unique_ptr<llvm::Module> theModule;
-    std::map<std::string, llvm::Value *> globalVars;
+    std::map<std::string, llvm::GlobalValue *> globalVars;
     std::map<std::string, llvm::Value *> globalConst;
-    std::map<std::string, std::map<std::string, llvm::Value *>> localVars;
+    std::map<std::string, std::map<std::string, llvm::AllocaInst *>> localVars;
+	std::map<std::string, llvm::Value *> globalMin;
+	std::map<std::string, std::map<std::string, llvm::Value *>> localMin;
     std::map<std::string, std::map<std::string, llvm::Value *>> localConst;
     llvm::Function *mainFunction;/*
 static BasicBlock * mainFunctBlock;*/

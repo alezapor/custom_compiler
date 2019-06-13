@@ -6,7 +6,6 @@ PJPCodegen::PJPCodegen() : builder(llvm::IRBuilder<>(theContext)) {
     llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getVoidTy(theContext), noargs, false);
 
     mainFunction = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, "main", theModule.get());
-    //mainFunction->setCallingConv(llvm::CallingConv::C);
     // Create a new basic block to start insertion into.
     llvm::BasicBlock *mainFunctBlock = llvm::BasicBlock::Create(theContext, "entry", mainFunction, 0);
     builder.SetInsertPoint(mainFunctBlock);
@@ -21,6 +20,7 @@ PJPCodegen::PJPCodegen() : builder(llvm::IRBuilder<>(theContext)) {
             llvm::FunctionType::get(llvm::Type::getInt32Ty(theContext), {llvm::Type::getInt8PtrTy(theContext)}, true),
             llvm::Function::ExternalLinkage, llvm::Twine("scanf"), theModule.get());
     mscanf->setCallingConv(llvm::CallingConv::C);
+    
 }
 
 void PJPCodegen::saveToObjectFile(const std::string &filename) {

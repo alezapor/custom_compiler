@@ -7,11 +7,11 @@ int PJPLexer::getTok() {
 
     // Skip any whitespace.
     while (isspace(lastChar))
-        lastChar = getchar();
+        lastChar = is->get();
 
-    if (isalpha(lastChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
+    if (isalpha(lastChar) || lastChar == '_') { // identifier: [a-zA-Z][a-zA-Z0-9]*
         identifierStr = lastChar;
-        while (isalnum((lastChar = getchar())))
+        while (isalnum((lastChar = is->get())) || lastChar == '_')
             identifierStr += lastChar;
 
         if (identifierStr == "program")
@@ -58,6 +58,22 @@ int PJPLexer::getTok() {
             return tokenDownto;
 	if (identifierStr == "break")
             return tokenBreak;
+	if (identifierStr == "array")
+            return tokenArray;
+	if (identifierStr == "of")
+            return tokenOf;
+	if (identifierStr == "downto")
+            return tokenDownto;
+	if (identifierStr == "and")
+            return tokenAnd;
+	if (identifierStr == "or")
+            return tokenOr;
+	if (identifierStr == "not")
+            return tokenNot;
+	if (identifierStr == "dec")
+            return tokenDec;
+	if (identifierStr == "forward")
+            return tokenForward;
         return tokenIdentifier;
     }
 
@@ -65,7 +81,7 @@ int PJPLexer::getTok() {
         std::string numStr;
         do {
             numStr += lastChar;
-            lastChar = getchar();
+            lastChar = is->get();
         } while (isdigit(lastChar));
 
         numVal = strtod(numStr.c_str(), 0);
@@ -76,7 +92,7 @@ int PJPLexer::getTok() {
         std::string numStr;
         do {
             numStr += lastChar;
-            lastChar = getchar();
+            lastChar = is->get();
         } while (isdigit(lastChar));
 
         numVal = strtod(numStr.c_str(), 0);
@@ -91,14 +107,14 @@ int PJPLexer::getTok() {
 
     // Otherwise, just return the character as its ascii value.
     int thisChar = lastChar;
-    lastChar = getchar();
+    lastChar = is->get();
 
     if (thisChar == '&') {
         if (lastChar >= '0' && lastChar <= '7') {   // octal number: &[0-7]+
             numVal = 0;
             do {
                 numVal = numVal * 8 + lastChar - '0';
-                lastChar = getchar();
+                lastChar = is->get();
             } while (lastChar >= '0' && lastChar <= '7');
 
             return tokenNumber;
@@ -111,7 +127,7 @@ int PJPLexer::getTok() {
             do {
                 if (lastChar >= '0' && lastChar <= '9') numVal = numVal * 16 + lastChar - '0';
                 else numVal = numVal * 16 + lastChar - 'A' + 10;
-                lastChar = getchar();
+                lastChar = is->get();
             } while ((lastChar >= '0' && lastChar <= '9') || (lastChar >= 'A' && lastChar <= 'F'));
 
             return tokenNumber;
@@ -124,7 +140,7 @@ int PJPLexer::getTok() {
             do {
                 if (lastChar >= '0' && lastChar <= '9') numVal = numVal * 16 + lastChar - '0';
                 else numVal = numVal * 16 + lastChar - 'a' + 10;
-                lastChar = getchar();
+                lastChar = is->get();
             } while ((lastChar >= '0' && lastChar <= '9') || (lastChar >= 'a' && lastChar <= 'f'));
 
             return tokenNumber;
@@ -133,14 +149,30 @@ int PJPLexer::getTok() {
 
     if (thisChar == ':') {
         if (lastChar == '=') {
-            lastChar = getchar();
+            lastChar = is->get();
             return tokenAssign;
         }
     }
     if (thisChar == '<') {
         if (lastChar == '>') {
-            lastChar = getchar();
+            lastChar = is->get();
             return tokenNeq;
+        }
+	 if (lastChar == '=') {
+            lastChar = is->get();
+            return tokenLE;
+        }
+    }
+    if (thisChar == '>') {
+        if (lastChar == '=') {
+            lastChar = is->get();
+            return tokenGE;
+        }
+    }
+    if (thisChar == '.') {
+        if (lastChar == '.') {
+            lastChar = is->get(); 
+            return tokenDelim;
         }
     }
     return thisChar;

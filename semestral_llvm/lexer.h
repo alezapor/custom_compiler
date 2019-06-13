@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <string>
+#include <fstream>
 
 enum Token {
     tokenEOF = -1,
@@ -29,17 +30,28 @@ enum Token {
 	tokenDownto = -23,
 	tokenNeq = -24,
 	tokenBreak = -25,
+	tokenArray = - 26,
+	tokenOf = -27,
+	tokenGE = -28,
+	tokenLE = -29,
+	tokenDelim = -30, // ..
+	tokenAnd = -31,
+	tokenOr = -32,
+	tokenNot = -33,
+	tokenDec = -34,
+	tokenForward = -35,
 
 
-    tokenIdentifier = -30,
-    tokenNumber = -31
+    tokenIdentifier = -40,
+    tokenNumber = -41
 };
 
 class PJPLexer {
 public:
-    PJPLexer() {}
+    PJPLexer(std::fstream * is) {this->is = is;}
 
     std::string identifierStr;    // Filled in if tokIdentifier
     int numVal;                     // Filled in if tokNumber
     int getTok();
+	std::fstream * is;
 };

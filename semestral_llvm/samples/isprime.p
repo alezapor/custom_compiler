@@ -11,12 +11,12 @@ begin
     if n < 4 then
     begin
         isprime := 1;
-        exit
+        exit;
     end;
     if ((n mod 2) = 0) or ((n mod 3) = 0) then
     begin
         isprime := 0;
-        exit
+        exit;
     end;
 
     isprime := 1;

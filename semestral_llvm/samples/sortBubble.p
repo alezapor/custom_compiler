@@ -15,10 +15,10 @@ begin
 	TEMP := X[J - 1];
         X[J - 1] := X[J];
 	X[J] := TEMP;
-      end
-    end
+      end;
+    end;
   end;
   for I := 0 to 20 do begin
     writeln(X[I]);
-  end
+  end;
 end.
