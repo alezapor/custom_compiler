@@ -65,5 +65,6 @@ begin
     factorization(100);
     factorization(131);
     factorization(133);
+	factorization(511);
 
 end.

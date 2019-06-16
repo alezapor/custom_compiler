@@ -14,7 +14,7 @@ static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function * theFunction,
 
 llvm::Value *NumbExprAST::codegen(PJPCodegen &codegen) {
     std::cout << "Creating integer: " << m_Val << std::endl;
-    return llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), m_Val, false);
+    return llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), m_Val, true);
 }
 
 
@@ -57,7 +57,7 @@ llvm::Value *ArrayContentAST::codegen(PJPCodegen &codegen) {
     if (m_Funct == "main") {
         if (codegen.globalVars.find(m_Name) != codegen.globalVars.end()) {
 	    std::vector<llvm::Value*> indices;
-	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0));
+	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0, true));
 	    indices.push_back(codegen.builder.CreateSub(m_Index->codegen(codegen), codegen.globalMin[m_Name]));
             return codegen.builder.CreateLoad(codegen.builder.CreateGEP(codegen.globalVars[m_Name], indices));
         }
@@ -67,13 +67,13 @@ llvm::Value *ArrayContentAST::codegen(PJPCodegen &codegen) {
     } else {
         if (codegen.localVars[m_Funct].find(m_Name) != codegen.localVars[m_Funct].end()) {
              std::vector<llvm::Value*> indices;
-	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0));
+	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0, true));
 	    indices.push_back(codegen.builder.CreateSub(m_Index->codegen(codegen), codegen.localMin[m_Funct][m_Name]));
             return codegen.builder.CreateLoad(codegen.builder.CreateGEP(codegen.localVars[m_Funct][m_Name], indices));
         }
         if (codegen.globalVars.find(m_Name) != codegen.globalVars.end()) {
             std::vector<llvm::Value*> indices;
-	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0));
+	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0, true));
 	    indices.push_back(codegen.builder.CreateSub(m_Index->codegen(codegen), codegen.globalMin[m_Name]));
              return codegen.builder.CreateLoad(codegen.builder.CreateGEP(codegen.globalVars[m_Name], indices));
         }
@@ -104,7 +104,7 @@ llvm::Value *ArrayContentRefAST::codegen(PJPCodegen &codegen){
     if (m_Funct == "main") {
         if (codegen.globalVars.find(m_Name) != codegen.globalVars.end()) {
 	    std::vector<llvm::Value*> indices;
-	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0));
+	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0, true));
 	    indices.push_back(codegen.builder.CreateSub(m_Index->codegen(codegen), codegen.globalMin[m_Name]));
             return codegen.builder.CreateGEP(codegen.globalVars[m_Name], indices);
         }
@@ -114,13 +114,13 @@ llvm::Value *ArrayContentRefAST::codegen(PJPCodegen &codegen){
     } else {
         if (codegen.localVars[m_Funct].find(m_Name) != codegen.localVars[m_Funct].end()) {
             std::vector<llvm::Value*> indices;
-	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0));
+	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0, true));
 	    indices.push_back(codegen.builder.CreateSub(m_Index->codegen(codegen), codegen.localMin[m_Funct][m_Name]));
             return codegen.builder.CreateGEP(codegen.localVars[m_Funct][m_Name], indices);
         }
         if (codegen.globalVars.find(m_Name) != codegen.globalVars.end()) {
             std::vector<llvm::Value*> indices;
-	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0));
+	    indices.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0, true));
 	    indices.push_back(codegen.builder.CreateSub(m_Index->codegen(codegen), codegen.globalMin[m_Name]));
              return codegen.builder.CreateGEP(codegen.globalVars[m_Name], indices);
         }
@@ -295,7 +295,7 @@ llvm::Value *ArrayDeclAST::codegen(PJPCodegen &codegen) {
         codegen.globalMin[m_Name] = llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), m_Min, true);
 	(codegen.theModule)->getOrInsertGlobal(m_Name, llvm::ArrayType::get(llvm::Type::getInt64Ty(codegen.theContext), m_Max-m_Min+1));
 	llvm::GlobalVariable* gVar = (codegen.theModule)->getNamedGlobal(m_Name);
-	gVar->setAlignment(32);
+	gVar->setAlignment(16);
 	gVar->setInitializer(llvm::ConstantArray::get(llvm::ArrayType::get(llvm::Type::getInt64Ty(codegen.theContext), m_Max-m_Min+1), llvm::ConstantInt::get(llvm::Type::getInt64Ty(codegen.theContext), 0)));
         codegen.globalVars[m_Name] = gVar;
         return gVar;

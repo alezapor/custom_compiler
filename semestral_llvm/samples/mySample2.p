@@ -12,9 +12,11 @@ begin
 	for I := 0 to 21 do
 		writeln(ARR[I]);
 	
+	writeln(1000000);
+
 	for I:=-1 to 20 do
 		begin
-			min_id := ;
+			min_id := I;
 			
 			for J := I+1 to 21 do
 				begin

@@ -1,0 +1,90 @@
+PR -> program id ; BODY
+BODY -> PROGMAIN
+BODY -> DCL BODY
+PROGMAIN -> FUNCTPROTO PROGMAIN1
+PROGMAIN -> MAIN
+PROGMAIN1 -> DCL FUNCTBODY PROGMAIN
+PROGMAIN1 -> begin REST PROGMAIN2
+PROGMAIN1 -> FUNCTPROTO PROGMAIN1
+PROGMAIN2 -> .
+PROGMAIN2 -> ; BODY
+FUNCTPROTO -> procedure id ( ARG ) ; FORWARD
+FUNCTPROTO -> function id ( ARG ) : integer ; FORWARD
+ARG -> id : TYPE ARGID
+ARG -> 
+ARGID -> ; id : TYPE ARGID
+ARGID -> 
+FUNCTBODY -> begin REST ;
+FUNCTBODY -> DCL FUNCTBODY
+DCL -> var ARGV1 : TYPE ; ARGV
+DCL -> const ARGC
+ARGV -> ARGV1 : TYPE ;
+ARGV ->
+ARGV1 -> id ARGV2 
+ARGV2 -> , id ARGV2
+ARGV2 ->
+ARGC ->  
+ARGC -> id = NUM ; ARGC
+MAIN -> begin REST .
+REST -> COMM ; REST
+REST -> end
+COMM -> if LOGEXPR then COMM_LIST COMM2
+COMM2 -> 
+COMM2 -> else COMM_LIST 
+COMM_LIST -> COMM
+COMM_LIST -> begin REST
+COMM -> while LOGEXPR do COMM_LIST
+COMM -> for id INDEX := E FOR
+FOR -> to E do COMM_LIST 
+FOR -> downto E do COMM_LIST 
+COMM -> readln ( id INDEX ) 
+COMM -> id COMM1 
+COMM -> exit 
+COMM -> break 
+COMM -> writeln ( E ) 
+COMM -> dec ( id )
+COMM1 -> ( ARGCALL )
+COMM1 -> := E
+COMM1 -> [ E ] := E
+LOGEXPR -> COND LOGEXPR'
+LOGEXPR -> not COND
+LOGEXPR' -> 
+LOGEXPR' -> and COND
+LOGEXPR' -> or COND
+COND -> E COND'
+COND' -> ROP E
+COND' ->
+ROP -> >
+ROP -> <>
+ROP -> =
+ROP -> <
+ROP -> >=
+ROP -> <=
+E -> T E'
+E' -> + T E'
+E' -> - T E'
+E' -> 
+T -> F T'
+T' -> * F T'
+T' -> div F T'
+T' -> mod F T'
+T' ->
+F -> id F'
+F -> num
+F -> - F
+F -> ( LOGEXPR )
+F' ->
+F' -> ( ARGCALL )
+F' -> [ E ]
+ARGCALL -> 
+ARGCALL -> E ARGCALL1
+ARGCALL1 -> , E ARGCALL1
+ARGCALL1 -> 
+TYPE -> integer
+TYPE -> array [ NUM .. NUM ] of integer
+INDEX -> [ E ] 
+INDEX ->
+NUM -> num
+NUM -> - num
+FORWARD -> forward ;
+FORWARD ->
