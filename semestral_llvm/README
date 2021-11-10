@@ -1,7 +1,0 @@
-compilation: make compile #pjp 
-producing executable of <test.p>: 
-    make run <test.p> #object file
-    clang obj/<programName>.o -o bin/<executable>
-	./bin/<executable>
-to run all tests: make tests
-to clean all object files and executables: make clean
